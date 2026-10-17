@@ -1,0 +1,15 @@
+import {strict as assert} from 'node:assert';
+import {mergePixels} from '../lib/image-utils.ts';
+import {initialDrafts,instruction} from '../lib/photo-tools.ts';
+const original=new Uint8ClampedArray([17,29,55,255,108,85,43,255,30,60,90,255]);
+const generated=new Uint8ClampedArray([255,0,0,255,210,170,86,255,90,120,150,255]);
+const mask=new Uint8ClampedArray([0,0,0,0,0,0,0,255,0,0,0,128]);
+const output=mergePixels(original.slice(),generated,mask);
+assert.deepEqual([...output.slice(0,4)],[17,29,55,255],'Untouched / protected pixels must remain byte-identical');
+assert.deepEqual([...output.slice(4,8)],[210,170,86,255],'Selected pixels must use the generated edit');
+assert.deepEqual([...output.slice(8,12)],[60,90,120,255],'Feathering must blend only the selected area');
+assert.throws(()=>mergePixels(original,generated,new Uint8ClampedArray(4)),/尺寸/);
+const d=initialDrafts();assert.equal(Object.keys(d).length,7);
+assert.match(instruction('clothing',{...d.clothing,preset:'上衣'}),/未选中的衣服全部保持不变/);
+assert.match(instruction('window',d.window),/窗框、百叶、窗帘、玻璃反射与室内全部不变/);
+console.log('Passed: pixel preservation, local blending, dimension guard and editing constraints.');

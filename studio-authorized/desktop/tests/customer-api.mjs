@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {runCustomerEdit} from '../api-core.mjs';
+const bytes=()=>new Uint8Array([137,80,78,71,13,10,26,10]).buffer;
+const payload=()=>({requestId:'a'.repeat(8)+'-aaaa-aaaa-aaaa-'+'a'.repeat(12),tool:'carpet',settings:{preset:'米白羊毛'},quality:'high',extra:'',image:bytes(),mask:bytes()});
+const rules={tools:[{id:'carpet',presets:['米白羊毛']}],invariants:'Keep original light',instruction:()=> 'Replace rug only'};
+test('missing customer key never reaches a paid API',async()=>{let count=0;await assert.rejects(runCustomerEdit(payload(),{rules,key:'',cloud:async()=>{count++;},fetchImpl:async()=>{count++;}}));assert.equal(count,0);});
+test('third device or revoked account never reaches customer API',async()=>{let count=0;await assert.rejects(runCustomerEdit(payload(),{rules,key:'sk-'+ 'test'.repeat(10),cloud:async()=>{throw Error('device limit');},fetchImpl:async()=>{count++;}}));assert.equal(count,0);});
+test('customer billing only, no fallback on insufficient quota',async()=>{const events=[];let calls=0;await assert.rejects(runCustomerEdit(payload(),{rules,key:'sk-'+ 'test'.repeat(10),cloud:async x=>{events.push(x);},fetchImpl:async(url,opts)=>{calls++;assert.equal(url,'https://api.openai.com/v1/images/edits');assert.equal(opts.headers.Authorization,'Bearer sk-'+ 'test'.repeat(10));assert.equal(opts.body.get('model'),'gpt-image-2');return {ok:false,status:429,json:async()=>({error:{code:'insufficient_quota'}})};}}));assert.equal(calls,1);assert.equal(events.at(-1).status,'failed');assert.ok(events.every(e=>!JSON.stringify(e).includes('sk-')));});
+test('paid result survives telemetry outage',async()=>{let events=0;const r=await runCustomerEdit(payload(),{rules,key:'sk-'+ 'test'.repeat(10),cloud:async x=>{events++;if(x.action==='finish')throw Error('offline');},fetchImpl:async()=>({ok:true,json:async()=>({data:[{b64_json:'image-result'}]})})});assert.equal(r.image,'data:image/png;base64,image-result');assert.equal(events,3);});
+test('invalid tool rejected before API',async()=>{let count=0;const p=payload();p.tool='unknown';await assert.rejects(runCustomerEdit(p,{rules,key:'sk-'+ 'test'.repeat(10),cloud:async()=>count++,fetchImpl:async()=>count++}));assert.equal(count,0);});
+test('cancellation prevents a pending paid call',async()=>{const c=new AbortController();c.abort();let count=0;await assert.rejects(runCustomerEdit(payload(),{rules,key:'sk-'+ 'test'.repeat(10),cloud:async()=>{},signal:c.signal,fetchImpl:async()=>count++}));assert.equal(count,0);});

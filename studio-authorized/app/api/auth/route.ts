@@ -1,0 +1,7 @@
+import {sameOrigin,accessResponse,AccessError} from '../../../lib/access';
+import {normalizeEmail,isGmail} from '../../../lib/access-rules';
+import {loginWithPassword} from '../../../lib/password-auth';
+export const dynamic='force-dynamic';
+const ok=(data:unknown,init?:ResponseInit)=>Response.json(data,{...init,headers:{'Cache-Control':'no-store',...(init?.headers||{})}});
+export async function POST(request:Request){try{sameOrigin(request);const b=await request.json() as {action?:string;email?:string;password?:string};if(b.action!=='login')throw new AccessError('操作无效。',400,'invalid_action');const email=normalizeEmail(String(b.email||'')),password=String(b.password||'');if(!isGmail(email))throw new AccessError('请输入 Gmail 邮箱。',400,'gmail_required');if(password.length<8||password.length>128)throw new AccessError('密码长度需为 8 到 128 位。',400,'invalid_password');const t=await loginWithPassword(email,password);return ok({loggedIn:true},{headers:{'Set-Cookie':`studio_session=${t}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax`}});}catch(e){return accessResponse(e);}}
+export async function GET(request:Request){const url=new URL(request.url);if(url.searchParams.get('action')!=='logout')return ok({ok:true});return new Response(null,{status:302,headers:{'Location':url.searchParams.get('return_to')||'/access','Set-Cookie':'studio_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'}});}

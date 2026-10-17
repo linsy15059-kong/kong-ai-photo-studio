@@ -1,0 +1,25 @@
+import {strict as assert} from 'node:assert';
+import {normalizeEmail,isGmail,isOwner,canUse,chinaDay,validLimit} from '../lib/access-rules.ts';
+const owner='owner@gmail.com',member={email:'member@gmail.com',status:'approved'};
+assert.equal(canUse(owner,owner,null),true);
+assert.equal(canUse('member@gmail.com',owner,member),true);
+assert.equal(canUse('unknown@gmail.com',owner,null),false);
+assert.equal(canUse('member@gmail.com',owner,{...member,status:'pending'}),false);
+assert.equal(canUse('member@gmail.com',owner,{...member,status:'suspended'}),false);
+assert.equal(canUse('member@gmail.com',owner,{...member,status:'denied'}),false);
+assert.equal(canUse('member+other@gmail.com',owner,member),false,'Unapproved aliases must not inherit grants');
+assert.equal(canUse('another@gmail.com',owner,member),false,'A membership cannot authorize a different identity');
+assert.equal(canUse('',owner,null),false);
+assert.equal(canUse('member@gmail.com','',member),false,'Unset owner must fail closed');
+assert.equal(isOwner('member@gmail.com',owner),false);
+assert.equal(isOwner(' OWNER@GMAIL.COM ',owner),true);
+assert.equal(isOwner('',''),false);
+assert.equal(isGmail('person@example.com'),false);
+assert.equal(isGmail('a@gmail.com.evil.test'),false);
+assert.equal(isGmail('a@gmail.com\n'),true); // whitespace normalization
+assert.equal(isGmail('a@googlemail.com'),false);
+assert.equal(normalizeEmail(' A.User@gmail.com '),'a.user@gmail.com');
+assert.equal(chinaDay(new Date('2026-10-11T15:59:59Z')),'2026-10-11');
+assert.equal(chinaDay(new Date('2026-10-11T16:00:00Z')),'2026-10-12');
+assert.equal(validLimit(0),true);assert.equal(validLimit(1000),true);assert.equal(validLimit(-1),false);assert.equal(validLimit(1001),false);assert.equal(validLimit(1.2),false);assert.equal(validLimit('30'),false);
+console.log('Passed: owner isolation, exact Gmail whitelist, revoked / pending denial, quota validation and China-day boundaries.');

@@ -1,0 +1,7 @@
+import type {Draft,Shape,ToolId} from './photo-tools';
+export type Result={id:string;image:string;name:string;time:string};
+export type Project={id:string;name:string;time:string;image:string;imageName:string;drafts:Record<ToolId,Draft>;protectedShapes:Shape[];extra:string;results:Result[]};
+async function db(){return new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('photography-tone-studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('projects',{keyPath:'id'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(Error('无法访问本地项目存储。'));});}
+export async function saveProject(p:Project){const d=await db();try{await new Promise<void>((resolve,reject)=>{const t=d.transaction('projects','readwrite');t.objectStore('projects').put(p);t.oncomplete=()=>resolve();t.onerror=()=>reject(Error('设备存储不足，项目未保存，请先下载图片。'));});}finally{d.close();}}
+export async function getProjects(){const d=await db();try{return await new Promise<Project[]>((resolve,reject)=>{const r=d.transaction('projects').objectStore('projects').getAll();r.onsuccess=()=>resolve((r.result as Project[]).sort((a,b)=>b.time.localeCompare(a.time)));r.onerror=()=>reject(Error('读取项目失败。'));});}finally{d.close();}}
+export async function deleteProject(id:string){const d=await db();try{await new Promise<void>((resolve,reject)=>{const t=d.transaction('projects','readwrite');t.objectStore('projects').delete(id);t.oncomplete=()=>resolve();t.onerror=()=>reject(Error('删除失败。'));});}finally{d.close();}}

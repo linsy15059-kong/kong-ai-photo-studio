@@ -1,0 +1,3 @@
+import {requireViewer,getDB,sameOrigin,accessResponse} from '../../../lib/access';
+export const dynamic='force-dynamic';
+export async function POST(request:Request){try{sameOrigin(request);const v=await requireViewer();const now=new Date().toISOString();await getDB().prepare('INSERT INTO activity (user_id,email,name,last_seen,page) VALUES (?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email,name=excluded.name,last_seen=excluded.last_seen,page=excluded.page').bind(v.user.userId,v.email,v.user.displayName,now,new URL(request.url).searchParams.get('page')==='admin'?'admin':'workbench').run();return Response.json({ok:true},{headers:{'Cache-Control':'no-store'}});}catch(e){return accessResponse(e);}}

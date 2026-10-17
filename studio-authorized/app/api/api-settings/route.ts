@@ -1,0 +1,7 @@
+import {requireViewer,sameOrigin,accessResponse,AccessError} from '../../../lib/access';
+import {clearCustomerKey,customerKeyStatus,saveCustomerKey} from '../../../lib/customer-api';
+export const dynamic='force-dynamic';
+const ok=(data:unknown)=>Response.json(data,{headers:{'Cache-Control':'private, no-store'}});
+const allowedModels=['gpt-image-2','gpt-image-2.5-sunburst','gpt-image-2.5-flare'];
+export async function GET(){try{const v=await requireViewer();return ok(await customerKeyStatus(v.email));}catch(e){return accessResponse(e);}}
+export async function POST(request:Request){try{sameOrigin(request);const v=await requireViewer();const b=await request.json() as {action?:string;key?:string;model?:string};if(b.action==='clear'){await clearCustomerKey(v.email);return ok({configured:false,model:'gpt-image-2'});}if(!b.key||b.key.length<20||b.key.length>300)throw new AccessError('请输入有效的 API Key。',400,'invalid_api_key');const model=allowedModels.includes(b.model||'')?b.model!:'gpt-image-2';if(b.action==='test'){const r=await fetch('https://api.openai.com/v1/models',{headers:{Authorization:'Bearer '+b.key},signal:AbortSignal.timeout(15000)});if(!r.ok){if(r.status===401)throw new AccessError('API Key 无效，请检查后重试。',401,'api_key_invalid');if(r.status===429)throw new AccessError('API 账户请求受限，请稍后重试。',429,'api_rate_limited');throw new AccessError('API 连接失败，请检查账户状态。',502,'api_test_failed');}return ok({tested:true,model});}await saveCustomerKey(v.email,b.key,model);return ok({configured:true,model});}catch(e){return accessResponse(e);}}

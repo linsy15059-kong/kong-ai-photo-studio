@@ -1,0 +1,60 @@
+{
+  "name": "photography-tone-studio-desktop",
+  "version": "1.0.0",
+  "description": "摄影定调工作台 Windows 售卖版",
+  "author": "Photography Tone Studio",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "test": "node --test tests/customer-api.mjs"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.photographytonestudio.desktop",
+    "productName": "摄影定调工作台",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "api-core.mjs",
+      "rules.mjs",
+      "frontend/**/*",
+      "package.json",
+      "THIRD-PARTY-LICENSES.txt",
+      "README.md"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.ico",
+      "artifactName": "PhotographyToneStudio-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "script": "installer.nsi",
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ]
+    },
+    "publish": null
+  }
+}
